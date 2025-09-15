@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { cn } from "@/lib/utils"; // if you have it; otherwise remove cn()
 import type { AutoItem, AutoResponse } from "@/types/autocomplete";
 import { Input } from "@/components/ui/input";
 
@@ -48,25 +47,44 @@ export function AutocompleteInput({
 
     const t = setTimeout(async () => {
       try {
-        // accept either /autocomplete or the misspelled /autoccomplete
         const enc = encodeURIComponent(value.trim());
-        const res = await fetch(`/api/autocomplete?query=${enc}`, { signal: ac.signal })
-          .catch(() => fetch(`/api/autoccomplete?query=${enc}`, { signal: ac.signal }));
+        // accept either /autocomplete or the misspelled /autoccomplete
+        const res =
+          (await fetch(`/api/autocomplete?query=${enc}`, { signal: ac.signal }).catch(
+            () => undefined
+          )) ||
+          (await fetch(`/api/autoccomplete?query=${enc}`, { signal: ac.signal }));
+
         if (!res || !res.ok) throw new Error("autocomplete fetch failed");
+
         const data = (await res.json()) as AutoResponse;
         const list = (data?.items ?? []).slice(0, 10);
         setItems(list);
         setActive(null);
         setOpen(list.length > 0);
-      } catch (_) {
-        if (!ac.signal.aborted) { setItems([]); setOpen(false); }
+      } catch {
+        if (!ac.signal.aborted) {
+          setItems([]);
+          setOpen(false);
+        }
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
     }, 200); // debounce 200ms
 
-    return () => { ac.abort(); clearTimeout(t); };
+    return () => {
+      ac.abort();
+      clearTimeout(t);
+    };
   }, [value, minChars]);
+
+  // Select a suggestion (used by pointer + keyboard)
+  const choose = (item: AutoItem) => {
+    onChange(item.title ?? "");
+    onSelect(item);           // your parent will search by id here
+    setOpen(false);
+    setActive(null);
+  };
 
   // keyboard navigation
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -74,26 +92,19 @@ export function AutocompleteInput({
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((prev) => {
-        if (prev === null) return 0;        // start at first
-        return (prev + 1) % items.length;   // cycle down
-      });
+      setActive((prev) => (prev === null ? 0 : (prev + 1) % items.length));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((prev) => {
-        if (prev === null) return items.length - 1; // start at last
-        return (prev - 1 + items.length) % items.length;
-      });
+      setActive((prev) =>
+        prev === null ? items.length - 1 : (prev - 1 + items.length) % items.length
+      );
     } else if (e.key === "Enter") {
       if (active !== null) {
         e.preventDefault();
         const item = items[active];
-        if (item) {
-          onSelect(item);
-          setOpen(false);
-        }
+        if (item) choose(item);
       }
-      // else: let the form submit with the plain input value
+      // else let the form submit with the plain input value
     } else if (e.key === "Escape") {
       setOpen(false);
     }
@@ -105,12 +116,18 @@ export function AutocompleteInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => items.length && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 100)} // allow pointerDown first
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         aria-autocomplete="list"
         aria-expanded={open}
         aria-controls="autocomplete-list"
+        aria-activedescendant={
+          active !== null ? `auto-opt-${items[active]?.id}` : undefined
+        }
+        role="combobox"
       />
+
       {open && (
         <div
           id="autocomplete-list"
@@ -118,27 +135,39 @@ export function AutocompleteInput({
           className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
         >
           <ul className="max-h-80 overflow-auto py-1">
-            {items.map((it, i) => (
-              <li
-                key={it.id}
-                onMouseEnter={() => setActive(i)}
-                className={`flex items-center gap-3 px-3 py-2 cursor-pointer
-                  ${active === i ? "bg-accent text-accent-foreground" : ""}`}
-              >
-                <div className="relative h-10 w-10 shrink-0 rounded bg-muted">
-                  {it.image && (
-                    <Image
-                      src={it.image}
-                      alt={it.title || "product"}
-                      fill
-                      className="object-contain"
-                      unoptimized
-                    />
-                  )}
-                </div>
-                <span className="line-clamp-2 text-sm">{it.title}</span>
-              </li>
-            ))}
+            {items.map((it, i) => {
+              const isActive = active === i;
+              return (
+                <li
+                  key={it.id}
+                  id={`auto-opt-${it.id}`}
+                  role="option"
+                  aria-selected={isActive}
+                  onMouseEnter={() => setActive(i)}
+                  // Mobile/desktop: select before blur
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    choose(it);
+                  }}
+                  className={`flex cursor-pointer items-center gap-3 px-3 py-2 ${
+                    isActive ? "bg-accent text-accent-foreground" : ""
+                  }`}
+                >
+                  <div className="relative h-10 w-10 shrink-0 rounded bg-muted">
+                    {it.image && (
+                      <Image
+                        src={it.image}
+                        alt={it.title || "product"}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    )}
+                  </div>
+                  <span className="line-clamp-2 text-sm">{it.title}</span>
+                </li>
+              );
+            })}
             {!items.length && !loading && (
               <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>
             )}

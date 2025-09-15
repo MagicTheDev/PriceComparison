@@ -8,7 +8,6 @@ import { Button } from "../components/ui/button";
 import { toast } from "sonner";
 import type {
   Product,
-  LesliesSearchResponse,
   LesliesSearchItem,
 } from "../types/product";
 import type { AutoItem } from "@/types/autocomplete";

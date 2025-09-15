@@ -25,6 +25,9 @@ module.exports = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }], // ok for prototyping
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

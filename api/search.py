@@ -45,6 +45,9 @@ async def pool360_product_pull(product_name: str) -> dict:
     product_pricing = None
     print(POOL360_PRICING, pricing_body)
     print("ISSUE", await response.text())
+    print("ISSUE", await response.json())
+    print("ISSUE", await response.read())
+
 
     product_pricing = product_pricing["realTimePricingResults"][0]
 

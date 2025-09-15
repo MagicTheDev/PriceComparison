@@ -41,14 +41,9 @@ async def pool360_product_pull(product_name: str) -> dict:
          "unitOfMeasure": uom,
          "qtyOrdered": 1}
     ]}
+    print(POOL360_HEADERS)
     response = await session.post(POOL360_PRICING, headers=POOL360_HEADERS, json=pricing_body)
-    product_pricing = None
-    print(POOL360_PRICING, pricing_body)
-    print("ISSUE", await response.text())
-    print("ISSUE", await response.read())
-    print("ISSUE", await response.json())
-
-
+    product_pricing = await response.json()
     product_pricing = product_pricing["realTimePricingResults"][0]
 
     response = await session.post(POOL360_INVENTORY, headers=POOL360_HEADERS, json={"productIds":[product_id]})

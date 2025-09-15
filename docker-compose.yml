@@ -19,6 +19,3 @@ services:
       NODE_ENV: production
     ports:
       - "3000:3000"
-    depends_on:
-      api:
-        condition: service_healthy

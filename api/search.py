@@ -46,7 +46,8 @@ async def pool360_product_pull(product_name: str) -> dict:
         product_pricing = await response.json()
     except:
         print(POOL360_PRICING, pricing_body)
-        print(await response.text())
+        print("ISSUE", await response.text())
+
     product_pricing = product_pricing["realTimePricingResults"][0]
 
     response = await session.post(POOL360_INVENTORY, headers=POOL360_HEADERS, json={"productIds":[product_id]})

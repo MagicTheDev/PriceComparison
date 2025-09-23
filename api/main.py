@@ -1,29 +1,36 @@
 from fastapi import FastAPI
+import asyncio
+from api.search import leslies_search, pool360_search, pwp_search
+from api.search import pool360_product_pull, leslies_product_pull, pwp_product_pull
 import uvicorn
-from api.search import leslies_search, pool360_product_pull, leslies_product_pull, pool360_search
-
 app = FastAPI()
 
 
-@app.get("/product/pool360")
-async def pool360_product(product_name: str) -> dict:
-    product = await pool360_product_pull(product_name)
+@app.get("/search/items")
+async def search_items(query: str) -> dict:
+    pool360_task = pool360_search(query=query)
+    leslies_task = leslies_search(query=query)
+    pwp_task = pwp_search(query=query)
+
+    pool360_products, leslies_products, pwp_products = await asyncio.gather(
+        pool360_task, leslies_task, pwp_task
+    )
+    full_list = {
+        "pool360": pool360_products | {"site" : "Pool360"},
+        "leslies": leslies_products | {"site" : "Leslie's"},
+        "pool_water_products": pwp_products | {"site" : "Pool Water Products"},
+    }
+    return full_list
+
+@app.get("/product")
+async def pool360_product(site: str, product_id: str) -> dict:
+    if site == "pool360":
+        product = await pool360_product_pull(product_id=product_id)
+    elif site == "leslies":
+        product = await leslies_product_pull(product_id=product_id)
+    elif site == "pool_water_products":
+        product = await pwp_product_pull(product_id=product_id)
     return product
-
-@app.get("/search/leslies")
-async def search_leslie(product_name: str) -> dict:
-    products = await leslies_search(product_name)
-    return products
-
-@app.get("/product/leslies/{product_id}")
-async def pool360_product(product_id: str) -> dict:
-    product = await leslies_product_pull(product_id)
-    return product
-
-@app.get("/autocomplete")
-async def autocomplete(query: str) -> dict:
-    products = await pool360_search(query)
-    return products
 
 
 if __name__ == "__main__":

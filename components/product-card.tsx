@@ -1,10 +1,10 @@
 import Image from "next/image";
-import { Product } from "../types/product";
+import { Search } from "../types/search";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 
-export default function ProductCard({ p }: { p: Product }) {
+export default function ProductCard({ p }: { p: Search }) {
   const img = p.images?.[0];
   const price = p.price;
 

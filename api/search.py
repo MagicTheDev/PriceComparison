@@ -3,9 +3,8 @@ from dotenv import load_dotenv
 import aiohttp
 import urllib.parse
 import re
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 from lxml import html as LH
-from urllib.parse import urljoin
 
 load_dotenv()
 

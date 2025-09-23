@@ -9,9 +9,9 @@ from urllib.parse import urljoin
 
 load_dotenv()
 
-
+LESLIE_STORES = [541, 367, 1507]
 LESLIES_SEARCH = "https://core.dxpapi.com/api/v1/core/?q={query}&auth_key=kkde0gmtwbup2bjq&account_id=6704&domain_key=lesliespool&request_id=794601000621&_br_uid_2=uid%253D9629816895277%253Av%253D15.0%253Ats%253D1724938009534%253Ahc%253D809&url=https%253A%252F%252Fpegasus.lesliespool.com%252Fon%252Fdemandware.static%252FSites-lpm_site-Site%252F-%252Fen_US%252Fv1728455837586%252Fon%252Fdemandware.store%252FSites-lpm_site-Site&ref_url=&request_type=search&fl=pid%2Curl%2Cdescription%2Ctitle%2Cthumb_image%2Cbrand%2Cprice%2Csale_price&start=0&facet.field=isDeliveryEligible&search_type=keyword&rows=25&facet=true&client_id=a233c1f2-f115-434d-959e-efc789d0cd45"
-LESLIES_PRODUCT_INFO = "https://lesliespool.com/s/lpm_site/dw/shop/v20_4/products/{product_id}?all_images=False&expand=images%2Cprices%2Cvariations%2Cavailability%2Cpromotions%2Coptions&sid=541&postalCode=75077-7239&client_id=a233c1f2-f115-434d-959e-efc789d0cd45"
+LESLIES_PRODUCT_INFO = "https://lesliespool.com/s/lpm_site/dw/shop/v20_4/products/{product_id}?all_images=False&expand=images%2Cprices%2Cvariations%2Cavailability%2Cpromotions%2Coptions&sid={store_id}&postalCode=75077-7239&client_id=a233c1f2-f115-434d-959e-efc789d0cd45"
 
 POOL360_SEARCH = "https://www.pool360.com/api/v2/products?includeSuggestions=true&search={query}"
 POOL360_INVENTORY = "https://www.pool360.com/api/v1/realtimeinventory?expand=warehouses"
@@ -137,8 +137,16 @@ async def leslies_search(query: str) -> dict:
 
 async def leslies_product_pull(product_id: str) -> dict:
     session = aiohttp.ClientSession()
-    response = await session.get(LESLIES_PRODUCT_INFO.format(product_id=product_id), headers=BASIC_HEADERS)
-    product_info = await response.json()
+
+    product_info =  ...
+    stock = []
+    for store_id in LESLIE_STORES:
+        response = await session.get(LESLIES_PRODUCT_INFO.format(product_id=product_id, store_id=store_id), headers=BASIC_HEADERS)
+        product_info = await response.json()
+        stock.append(
+                {"location": product_info["c_availability"]["store"]["name"],
+                 "qty": product_info["c_availability"]["location_availability"]["quantity"]}
+        )
 
     full_data = {
         "id": product_id,
@@ -148,10 +156,7 @@ async def leslies_product_pull(product_id: str) -> dict:
         "url": f"https://lesliespool.com/{product_id}.html",
         "price": f"${product_info["price"]}",
         "unit_of_measure": "Item",
-        "stock": [
-            {"location": product_info["c_availability"]["store"]["name"],
-             "qty" : product_info["c_availability"]["location_availability"]["quantity"]}
-        ],
+        "stock": stock,
         "site": "Leslie's",
         "images": [product_info["image_groups"][0]["images"][0]["link"]],
         "brand_name": product_info.get("brand", "No Brand"),

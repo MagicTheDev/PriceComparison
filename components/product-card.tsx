@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 
-export default function ProductCard({ p }: { p: Search }) {
+export default function ProductCard({ p }: { p }) {
   const img = p.images?.[0];
   const price = p.price;
 

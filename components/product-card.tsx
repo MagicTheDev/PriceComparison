@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { Search } from "../types/search";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";

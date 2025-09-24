@@ -32,7 +32,7 @@ HERITAGE_SEARCH = "https://www.heritagepoolplus.com/rest/V1/productIndex/mine/kl
 HERITAGE_PRICING = "https://www.heritagepoolplus.com/rest/V1/srsdistribution/mine/getproductprice"
 HERITAGE_PRODUCT_INFO = "https://www.heritagepoolplus.com/rest/V1/productIndex/mine/details"
 HERITAGE_BASE_URL = "https://www.heritagepoolplus.com/"
-HERITAGE_INVENTORY = "https://www.heritagepoolplus.com/rest/V1/srsdistribution/mine/inventory"
+HERITAGE_INVENTORY = "https://www.heritagepoolplus.com/rest/V1/srsdistribution/mine/getinventoryallbranch"
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
@@ -399,13 +399,19 @@ async def heritage_product_pull(product_id: str) -> dict:
     product_info = results[0][0]
 
 
-    inventory_body = {"productInfo" : json.dumps({"products": {product_info["part"]: product_info["id"]}}, separators=(",", ":"))}
+    inventory_body = {"productId": product_info["id"], "productUom": "EA"}
     response = await session.post(HERITAGE_INVENTORY, headers=HERITAGE_HEADERS, json=inventory_body)
     inventory_results = await response.json()
     inventory_results = json.loads(inventory_results)
-    inventory_info = inventory_results.get(product_info["part"])
 
-    response = await session.post(HERITAGE_PRICING, headers=HERITAGE_HEADERS, json=inventory_body)
+    stock = []
+    for result in inventory_results:
+        stock.append({
+            "location": result["branch"].replace("TEXAS POOL SUPPLY", "TPS"),
+            "qty": int(result["stock_availability_text"].split(" ")[0]) if result["stock"] else 0,
+        })
+    pricing_body = {"productInfo" : json.dumps({"products": {product_info["part"]: product_info["id"]}}, separators=(",", ":"))}
+    response = await session.post(HERITAGE_PRICING, headers=HERITAGE_HEADERS, json=pricing_body)
     pricing_results = await response.json()
     pricing_results = json.loads(pricing_results)
 
@@ -417,10 +423,7 @@ async def heritage_product_pull(product_id: str) -> dict:
         "url": HERITAGE_BASE_URL + product_info["url_key"],
         "price": f"${pricing_results.get(product_info["id"])["price"]}",
         "unit_of_measure": "Each",
-        "stock": [
-            {"location": inventory_info["branch"], "qty": inventory_info["active_branch_qty"]},
-            {"location": "Other Branches", "qty": inventory_info["other_branches_qty"]},
-        ],
+        "stock": stock,
         "site": "Heritage",
         "images": [product_info["cld_data"]["image"]],
         "brand_name": product_info["custom_attributes"][0].get("value", "N/A")

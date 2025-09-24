@@ -5,6 +5,7 @@ import urllib.parse
 import re
 from typing import Any, Optional
 from lxml import html as LH
+import json
 
 load_dotenv()
 
@@ -26,13 +27,16 @@ PWP_COOKIE = ...
 FULL_PWP_COOKIE = f"accountId=5591; shoppingCart=""; JSESSIONID={SESSION_ID}; __utma=190507434.2125184611.1758548975.1758548975.1758548975.1; __utmb=190507434.4.10.1758548975; __utmz=190507434.1758548975.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1; __utmc=190507434"
 PWP_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBlPTXRyZ5WF65z-rgpEPay1KnanxpJFD-BQ&s"
 
+HERITAGE_COOKIE = os.getenv("HERITAGE_COOKIE")
+HERITAGE_SEARCH = "https://www.heritagepoolplus.com/rest/V1/productIndex/mine/klevusearch"
+
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
 POOL360_COOKIE = os.getenv("POOL360_COOKIE")
 
 BASIC_HEADERS = {"User-Agent": USER_AGENT}
 POOL360_HEADERS = {"User-Agent": USER_AGENT, "Cookie": POOL360_COOKIE, "Origin": "https://www.pool360.com"}
-
+HERITAGE_HEADERS = {"User-Agent": USER_AGENT} | {"Cookie": HERITAGE_COOKIE, "x-requested-with": "XMLHttpRequest"}
 
 async def pool360_search(query: str) -> dict:
     query = urllib.parse.quote(query)
@@ -146,10 +150,9 @@ async def leslies_product_pull(product_id: str) -> dict:
                 {"location": product_info["c_availability"]["store"]["name"],
                  "qty": product_info["c_availability"]["location_availability"]["quantity"]}
         )
-
     full_data = {
         "id": product_id,
-        "name": product_info["page_title"],
+        "name": product_info["name"],
         "description": product_info.get("short_description", "No Description"),
         "product_number": product_info.get("manufacturer_sku", "No SKU"),
         "url": f"https://lesliespool.com/{product_id}.html",
@@ -346,5 +349,21 @@ async def pwp_product_pull(product_id: str) -> dict:
     return parse_product(response, product_id)
 
 
+async def heritage_search(query: str) -> dict:
+    session = aiohttp.ClientSession()
 
+    body = {"params": {"store_id": "17", "search_term": query, "selected_slider_category": "", "p": 1, "page_count": 20, "promos_filter": []}}
+    response = await session.post(HERITAGE_SEARCH, headers=HERITAGE_HEADERS, json=body)
+    results = await response.json()
+    results = json.loads(results)
+
+    for result in results.get("hits", []):
+        ...
+    await session.close()
+
+async def heritage_product_pull(product_id: str) -> dict:
+    ...
+
+'''import asyncio
+asyncio.run(heritage_search("pb4sq"))'''
 

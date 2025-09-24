@@ -415,7 +415,7 @@ async def heritage_product_pull(product_id: str) -> dict:
         "description": product_info["description"],
         "product_number": product_info["item_mfg_number"],
         "url": HERITAGE_BASE_URL + product_info["url_key"],
-        "price": "$" + pricing_results.get(product_info["id"])["price"],
+        "price": f"${pricing_results.get(product_info["id"])["price"]}",
         "unit_of_measure": "Each",
         "stock": [
             {"location": inventory_info["branch"], "qty": inventory_info["active_branch_qty"]},

@@ -6,6 +6,7 @@ import re
 from typing import Any, Optional
 from lxml import html as LH
 import json
+from collections import defaultdict
 
 load_dotenv()
 
@@ -29,6 +30,10 @@ PWP_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBlPTXR
 
 HERITAGE_COOKIE = os.getenv("HERITAGE_COOKIE")
 HERITAGE_SEARCH = "https://www.heritagepoolplus.com/rest/V1/productIndex/mine/klevusearch"
+HERITAGE_PRICING = "https://www.heritagepoolplus.com/rest/V1/srsdistribution/mine/getproductprice"
+HERITAGE_PRODUCT_INFO = "https://www.heritagepoolplus.com/rest/V1/productIndex/mine/details"
+HERITAGE_BASE_URL = "https://www.heritagepoolplus.com/"
+HERITAGE_INVENTORY = "https://www.heritagepoolplus.com/rest/V1/srsdistribution/mine/inventory"
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
@@ -355,15 +360,73 @@ async def heritage_search(query: str) -> dict:
     body = {"params": {"store_id": "17", "search_term": query, "selected_slider_category": "", "p": 1, "page_count": 20, "promos_filter": []}}
     response = await session.post(HERITAGE_SEARCH, headers=HERITAGE_HEADERS, json=body)
     results = await response.json()
-    results = json.loads(results)
+    results = json.loads(results).get("hits")
 
+    pricing_request_map = {}
     for result in results.get("hits", []):
-        ...
+        item = result["_source"]
+        pricing_request_map[item["part"]] = item["id"]
+
+    pricing_body = {"productInfo": json.dumps({"products": pricing_request_map}, separators=(",", ":"))}
+    response = await session.post(HERITAGE_PRICING, headers=HERITAGE_HEADERS, json=pricing_body)
+    pricing_results = await response.json()
+    pricing_results = json.loads(pricing_results)
+
+    items = []
+    for result in results.get("hits", []):
+        item = result["_source"]
+        price = pricing_results.get(item["id"])
+        if not price:
+            continue
+        items.append({
+            "pid": item["sku"],
+            "title": item["name"],
+            "url": item["product_url"],
+            "price": f"${price["price"]}",
+            "brand": item["brand"],
+            "description": item["item_name"],
+            "thumb_image": item["cloudinary_image_url"],
+        })
     await session.close()
+    return {"items": items}
+
 
 async def heritage_product_pull(product_id: str) -> dict:
-    ...
+    session = aiohttp.ClientSession()
 
-'''import asyncio
-asyncio.run(heritage_search("pb4sq"))'''
+    product_body = {"params":{"sku":[product_id],"recent_view_skip":False}}
+    response = await session.post(HERITAGE_PRODUCT_INFO, headers=HERITAGE_HEADERS, json=product_body)
+    results = await response.json()
+    product_info = results[0][0]
+
+
+    inventory_body = {"productInfo" : json.dumps({"products": {product_info["part"]: product_info["id"]}}, separators=(",", ":"))}
+    response = await session.post(HERITAGE_INVENTORY, headers=HERITAGE_HEADERS, json=inventory_body)
+    inventory_results = await response.json()
+    inventory_results = json.loads(inventory_results)
+    inventory_info = inventory_results.get(product_info["part"])
+
+    response = await session.post(HERITAGE_PRICING, headers=HERITAGE_HEADERS, json=inventory_body)
+    pricing_results = await response.json()
+    pricing_results = json.loads(pricing_results)
+
+    full_data = {
+        "id": product_id,
+        "name": product_info["name"],
+        "description": product_info["description"],
+        "product_number": product_info["item_mfg_number"],
+        "url": HERITAGE_BASE_URL + product_info["url_key"],
+        "price": pricing_results.get(product_info["id"])["price"],
+        "unit_of_measure": "Each",
+        "stock": [
+            {"location": inventory_info["branch"], "qty": inventory_info["active_branch_qty"]},
+            {"location": "Other Branches", "qty": inventory_info["other_branches_qty"]},
+        ],
+        "site": "Heritage",
+        "images": [product_info["cld_data"]["image"]],
+        "brand_name": product_info["custom_attributes"][0].get("value", "N/A")
+    }
+    await session.close()
+    return full_data
+
 

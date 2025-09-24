@@ -6,7 +6,6 @@ import re
 from typing import Any, Optional
 from lxml import html as LH
 import json
-from collections import defaultdict
 
 load_dotenv()
 

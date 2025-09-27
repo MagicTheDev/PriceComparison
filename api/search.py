@@ -430,7 +430,4 @@ async def heritage_product_pull(product_id: str) -> dict:
     await session.close()
     return full_data
 
-import asyncio
-asyncio.run(heritage_search("pb4sq"))
-
 

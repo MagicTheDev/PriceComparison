@@ -369,7 +369,6 @@ async def heritage_search(query: str) -> dict:
     pricing_body = {"productInfo": json.dumps({"products": pricing_request_map}, separators=(",", ":"))}
     response = await session.post(HERITAGE_PRICING, headers=HERITAGE_HEADERS, json=pricing_body)
     pricing_results = await response.json()
-    pricing_results = json.loads(pricing_results)
 
     items = []
     for result in results.get("hits", []):
@@ -430,5 +429,8 @@ async def heritage_product_pull(product_id: str) -> dict:
     }
     await session.close()
     return full_data
+
+import asyncio
+asyncio.run(heritage_search("pb4sq"))
 
 
